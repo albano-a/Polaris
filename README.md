@@ -18,28 +18,40 @@ For local development:
 
 ## CLI
 
-List known Gemini models:
+List known models for all supported providers:
 
 ```powershell
 polaris models
 ```
 
-List models from the Gemini API using your configured key:
+Filter by provider:
 
 ```powershell
-polaris models --live
+polaris models --provider openai
+polaris models --provider anthropic
+polaris models --provider deepseek
+polaris models --provider google
 ```
 
-Save your Gemini API key and model:
+List models from the Google Gemini API using your configured key:
 
 ```powershell
-polaris configure --provider gemini --model gemini/gemini-2.5-flash
+polaris models --provider google --live
+```
+
+Save an API key and model:
+
+```powershell
+polaris configure --provider google --model gemini/gemini-2.5-flash
+polaris configure --provider openai --model openai/gpt-4o-mini
+polaris configure --provider anthropic --model anthropic/claude-sonnet-4-5
+polaris configure --provider deepseek --model deepseek/deepseek-chat
 ```
 
 You can also pass the key directly, although interactive entry is safer:
 
 ```powershell
-polaris configure --provider gemini --model gemini/gemini-2.5-flash --api-key "YOUR_KEY"
+polaris configure --provider google --model gemini/gemini-2.5-flash --api-key "YOUR_KEY"
 ```
 
 Ask a question:
@@ -72,6 +84,9 @@ Environment variables override stored API keys:
 
 ```powershell
 $env:GEMINI_API_KEY="YOUR_KEY"
+$env:OPENAI_API_KEY="YOUR_KEY"
+$env:ANTHROPIC_API_KEY="YOUR_KEY"
+$env:DEEPSEEK_API_KEY="YOUR_KEY"
 $env:POLARIS_MODEL="gemini/gemini-2.5-flash"
 polaris ask "Explain seismic inversion."
 ```
@@ -85,16 +100,25 @@ from polaris_core import create_model
 
 model = create_model(
     model="gemini/gemini-2.5-flash",
-    api_key="YOUR_GEMINI_API_KEY",
+    api_key="YOUR_GOOGLE_API_KEY",
+    provider="google",
 )
 ```
 
-Or use the Gemini convenience helper:
+Or use provider convenience helpers:
 
 ```python
-from polaris_core import create_gemini_model
+from polaris_core import (
+    create_anthropic_model,
+    create_deepseek_model,
+    create_google_model,
+    create_openai_model,
+)
 
-model = create_gemini_model(api_key="YOUR_GEMINI_API_KEY")
+model = create_google_model(api_key="YOUR_GOOGLE_API_KEY")
+model = create_openai_model(api_key="YOUR_OPENAI_API_KEY")
+model = create_anthropic_model(api_key="YOUR_ANTHROPIC_API_KEY")
+model = create_deepseek_model(api_key="YOUR_DEEPSEEK_API_KEY")
 ```
 
 Persist model configuration for later use:
@@ -104,7 +128,8 @@ from polaris_core import save_model_config
 
 save_model_config(
     model="gemini/gemini-2.5-flash",
-    api_key="YOUR_GEMINI_API_KEY",
+    api_key="YOUR_GOOGLE_API_KEY",
+    provider="google",
 )
 ```
 
@@ -113,7 +138,11 @@ Create a ready-to-use service:
 ```python
 from polaris_core import AssistantContext, AssistantRequest, create_service
 
-service = create_service(model="gemini/gemini-2.5-flash", api_key="YOUR_GEMINI_API_KEY")
+service = create_service(
+    model="gemini/gemini-2.5-flash",
+    api_key="YOUR_GOOGLE_API_KEY",
+    model_provider="google",
+)
 
 response = service.ask(
     AssistantRequest(
@@ -133,11 +162,23 @@ List suggested models from Python:
 ```python
 from polaris_core import list_available_models
 
-for model in list_available_models("gemini"):
+for model in list_available_models("google"):
     print(model.model, model.description)
 ```
 
 ## Build And Upload
+
+This repository includes a GitHub Actions workflow at `.github/workflows/publish.yml`.
+
+It builds and tests on pushes and pull requests. It publishes to PyPI when a GitHub Release is published.
+
+Recommended PyPI setup:
+
+1. Create the `polaris-core` project on PyPI.
+2. Add a Trusted Publisher for this GitHub repository.
+3. Use workflow file `.github/workflows/publish.yml`.
+4. Use the GitHub environment name `pypi`.
+5. Publish a GitHub Release to trigger the upload.
 
 Build distributions:
 

@@ -25,13 +25,17 @@ def build_parser() -> argparse.ArgumentParser:
     add_ask_arguments(ask)
 
     configure = subparsers.add_parser("configure", help="Save provider, model, and API key.")
-    configure.add_argument("--provider", default="gemini", help="Provider name. Default: gemini.")
+    configure.add_argument(
+        "--provider",
+        default="google",
+        help="Provider name: google, openai, anthropic, or deepseek. Default: google.",
+    )
     configure.add_argument("--model", help="Model name. Default: provider default.")
     configure.add_argument("--api-key", help="API key. If omitted, Polaris asks securely.")
     configure.add_argument("--show-path", action="store_true", help="Print the config path after saving.")
 
     models = subparsers.add_parser("models", help="List known model names.")
-    models.add_argument("--provider", default="gemini", help="Provider name. Default: gemini.")
+    models.add_argument("--provider", help="Provider name. Omit to list all providers.")
     models.add_argument("--live", action="store_true", help="Fetch models from the provider API.")
 
     config = subparsers.add_parser("config", help="Show current non-secret configuration.")
@@ -88,7 +92,7 @@ def models_command(args: argparse.Namespace) -> int:
         config = ConfigStore().load()
         api_key = config.api_key_for(args.provider)
         if not api_key:
-            print("No API key configured. Run 'polaris configure' or set GEMINI_API_KEY.")
+            print("No API key configured. Run 'polaris configure' or set the provider API key env var.")
             return 1
         models = fetch_live_models(args.provider, api_key)
     else:
