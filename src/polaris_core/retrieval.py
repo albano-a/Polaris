@@ -3,11 +3,13 @@ from __future__ import annotations
 import math
 import re
 from dataclasses import dataclass, field
+from importlib.resources import as_file, files
 from pathlib import Path
 
 from polaris_core.models import Document
 
 TOKEN_PATTERN = re.compile(r"[\wÀ-ÿ]+", re.UNICODE)
+DEFAULT_DOCUMENT_PATTERNS = ("*.txt", "*.md", "*.rst", "*.pdf")
 
 
 def tokenize(text: str) -> list[str]:
@@ -47,7 +49,7 @@ class LocalRetriever:
     def from_directory(
         cls,
         directory: str | Path,
-        patterns: tuple[str, ...] = ("*.txt", "*.md", "*.rst"),
+        patterns: tuple[str, ...] = DEFAULT_DOCUMENT_PATTERNS,
     ) -> "LocalRetriever":
         root = Path(directory)
         if root.is_file():
@@ -58,7 +60,7 @@ class LocalRetriever:
             return cls(documents=documents)
 
         for pattern in patterns:
-            for path in sorted(root.glob(pattern)):
+            for path in sorted(root.rglob(pattern)):
                 if path.is_file():
                     documents.append(read_document(path))
         return cls(documents=documents)
@@ -67,7 +69,7 @@ class LocalRetriever:
     def from_path(
         cls,
         path: str | Path,
-        patterns: tuple[str, ...] = ("*.txt", "*.md", "*.rst"),
+        patterns: tuple[str, ...] = DEFAULT_DOCUMENT_PATTERNS,
     ) -> "LocalRetriever":
         source = Path(path)
         if source.is_dir():
@@ -75,6 +77,12 @@ class LocalRetriever:
         if not source.exists() or not source.is_file():
             return cls(documents=[])
         return cls(documents=[read_document(source)])
+
+    @classmethod
+    def from_packaged_docs(cls) -> "LocalRetriever":
+        docs = files("polaris_core").joinpath("docs")
+        with as_file(docs) as docs_path:
+            return cls.from_path(docs_path)
 
     def add_document(self, document: Document) -> None:
         self.documents.append(document)
@@ -141,9 +149,32 @@ class LocalRetriever:
 
 
 def read_document(path: Path) -> Document:
+    text = (
+        read_pdf_text(path)
+        if path.suffix.lower() == ".pdf"
+        else path.read_text(encoding="utf-8", errors="replace")
+    )
     return Document(
         id=str(path.resolve()),
         name=path.name,
-        text=path.read_text(encoding="utf-8", errors="replace"),
-        metadata={"path": str(path)},
+        text=text,
+        metadata={
+            "path": str(path),
+            "source_type": path.suffix.lower().lstrip(".") or "text",
+        },
     )
+
+
+def read_pdf_text(path: Path) -> str:
+    try:
+        import fitz
+    except ImportError as exc:
+        raise RuntimeError("Reading PDF documents requires PyMuPDF. Install polaris-core with PDF support.") from exc
+
+    pages: list[str] = []
+    with fitz.open(str(path)) as document:
+        for page in document:
+            text = page.get_text("text").strip()
+            if text:
+                pages.append(text)
+    return "\n\n".join(pages)

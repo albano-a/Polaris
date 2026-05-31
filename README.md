@@ -66,11 +66,19 @@ The short form still works:
 polaris "How do checkshots help seismic well ties?"
 ```
 
-Use local uploaded context:
+Use local uploaded context from text or PDF files:
 
 ```powershell
 polaris ask --docs "C:\path\to\docs" "Summarize the uploaded reports."
 ```
+
+Pass `--docs` without a path to use the geophysics documents packaged with PolarisCore:
+
+```powershell
+polaris ask "How does acoustic impedance relate to porosity?" --docs
+```
+
+Packaged references live in `src/polaris_core/docs` during development. PDFs, `.txt`, `.md`, and `.rst` files placed there are included in the installed package and used as retrieval context.
 
 Show non-secret config:
 
