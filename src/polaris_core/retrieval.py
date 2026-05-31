@@ -50,6 +50,9 @@ class LocalRetriever:
         patterns: tuple[str, ...] = ("*.txt", "*.md", "*.rst"),
     ) -> "LocalRetriever":
         root = Path(directory)
+        if root.is_file():
+            return cls.from_path(root)
+
         documents: list[Document] = []
         if not root.exists():
             return cls(documents=documents)
@@ -57,15 +60,21 @@ class LocalRetriever:
         for pattern in patterns:
             for path in sorted(root.glob(pattern)):
                 if path.is_file():
-                    documents.append(
-                        Document(
-                            id=str(path.resolve()),
-                            name=path.name,
-                            text=path.read_text(encoding="utf-8", errors="replace"),
-                            metadata={"path": str(path)},
-                        )
-                    )
+                    documents.append(read_document(path))
         return cls(documents=documents)
+
+    @classmethod
+    def from_path(
+        cls,
+        path: str | Path,
+        patterns: tuple[str, ...] = ("*.txt", "*.md", "*.rst"),
+    ) -> "LocalRetriever":
+        source = Path(path)
+        if source.is_dir():
+            return cls.from_directory(source, patterns=patterns)
+        if not source.exists() or not source.is_file():
+            return cls(documents=[])
+        return cls(documents=[read_document(source)])
 
     def add_document(self, document: Document) -> None:
         self.documents.append(document)
@@ -129,3 +138,12 @@ class LocalRetriever:
             idf = math.log((1 + total_chunks) / (1 + df)) + 1
             score += frequency * idf
         return score
+
+
+def read_document(path: Path) -> Document:
+    return Document(
+        id=str(path.resolve()),
+        name=path.name,
+        text=path.read_text(encoding="utf-8", errors="replace"),
+        metadata={"path": str(path)},
+    )

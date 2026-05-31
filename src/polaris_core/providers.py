@@ -6,6 +6,7 @@ from typing import Protocol
 
 from polaris_core.config import ConfigStore, PolarisConfig
 from polaris_core.exceptions import ConfigurationError, ProviderError
+from polaris_core.logging_utils import suppress_litellm_optional_aws_warnings
 from polaris_core.models import ChatMessage, MessageRole, TokenUsage
 
 
@@ -69,6 +70,7 @@ class LiteLLMProvider:
         return cls(model=model, api_key=api_key)
 
     def complete(self, messages: list[ChatMessage]) -> LLMResult:
+        suppress_litellm_optional_aws_warnings()
         try:
             import litellm
         except ImportError as exc:

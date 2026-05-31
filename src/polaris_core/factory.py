@@ -112,7 +112,7 @@ def create_service(
             if model or api_key
             else create_model_from_config()
         )
-    retriever = LocalRetriever.from_directory(docs_path) if docs_path else None
+    retriever = LocalRetriever.from_path(docs_path) if docs_path else None
     return PolarisService(
         provider=selected_provider,
         profile=profile or geophysics_profile(),

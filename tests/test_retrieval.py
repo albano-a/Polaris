@@ -24,3 +24,16 @@ def test_local_retriever_finds_relevant_chunk():
     assert results
     assert results[0].document_name == "seismic.md"
     assert "impedance" in results[0].chunk
+
+
+def test_local_retriever_loads_single_file_path(tmp_path):
+    path = tmp_path / "andromeda.txt"
+    path.write_text("Andromeda software supports geophysical workflows.", encoding="utf-8")
+
+    retriever = LocalRetriever.from_path(path)
+    results = retriever.search("What is Andromeda software?")
+
+    assert len(retriever.documents) == 1
+    assert retriever.documents[0].name == "andromeda.txt"
+    assert results
+    assert "Andromeda software" in results[0].chunk

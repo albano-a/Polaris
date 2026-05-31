@@ -47,10 +47,11 @@ def build_parser() -> argparse.ArgumentParser:
 def add_ask_arguments(parser: argparse.ArgumentParser) -> None:
     parser.add_argument("message", nargs="*", help="Message to send to Polaris.")
     parser.add_argument("--mock", action="store_true", help="Use the built-in mock provider.")
-    parser.add_argument("--docs", type=Path, help="Directory with .txt/.md/.rst files for retrieval.")
+    parser.add_argument("--docs", type=Path, help="File or directory with .txt/.md/.rst files for retrieval.")
     parser.add_argument("--plain", action="store_true", help="Ask for plain text instead of HTML.")
     parser.add_argument("--context-title", default=None, help="Optional title for runtime context.")
     parser.add_argument("--context-summary", default=None, help="Optional summary for runtime context.")
+    parser.add_argument("--verbose", action="store_true", help="Print retrieval diagnostics to stderr.")
 
 
 def main(argv: list[str] | None = None) -> int:
@@ -127,7 +128,10 @@ def ask_command(args: argparse.Namespace) -> int:
         raise SystemExit("Provide a message or pipe one through stdin.")
 
     provider = MockLLMProvider() if args.mock else LiteLLMProvider.from_config()
-    retriever = LocalRetriever.from_directory(args.docs) if args.docs else None
+    retriever = LocalRetriever.from_path(args.docs) if args.docs else None
+    if args.verbose and args.docs:
+        count = len(retriever.documents) if retriever else 0
+        print(f"Loaded {count} document(s) from {args.docs}", file=sys.stderr)
     service = PolarisService(
         provider=provider,
         profile=geophysics_profile(),
