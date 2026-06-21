@@ -4,7 +4,7 @@ build-backend = "setuptools.build_meta"
 
 [project]
 name = "polaris-core"
-version = "0.1.0"
+version = "0.2.0"
 description = "UI-independent AI chatbot core with geophysics profile and local context retrieval."
 readme = "README.md"
 requires-python = ">=3.11"
