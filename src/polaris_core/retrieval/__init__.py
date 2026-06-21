@@ -84,6 +84,17 @@ class LocalRetriever:
         with as_file(docs) as docs_path:
             return cls.from_path(docs_path)
 
+    @classmethod
+    def from_user_docs(cls) -> "LocalRetriever":
+        from polaris_core.config import user_docs_dir
+        return cls.from_directory(user_docs_dir())
+
+    @classmethod
+    def from_packaged_and_user_docs(cls) -> "LocalRetriever":
+        packaged = cls.from_packaged_docs()
+        user = cls.from_user_docs()
+        return cls(documents=packaged.documents + user.documents)
+
     def add_document(self, document: Document) -> None:
         self.documents.append(document)
 

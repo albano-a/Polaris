@@ -7,7 +7,7 @@ from getpass import getpass
 from pathlib import Path
 from typing import Any
 
-from polaris_core.model_registry import default_model_for, normalize_provider
+from polaris_core.llm.registry import default_model_for, normalize_provider
 
 
 API_KEY_ENV_VARS = {
@@ -79,6 +79,14 @@ def default_config_path() -> Path:
         return root / "PolarisCore" / "config.json"
     root = Path(os.getenv("XDG_CONFIG_HOME") or Path.home() / ".config")
     return root / "polaris-core" / "config.json"
+
+
+def user_docs_dir() -> Path:
+    if os.name == "nt":
+        root = Path(os.getenv("APPDATA") or Path.home() / "AppData" / "Roaming")
+        return root / "PolarisCore" / "docs"
+    root = Path(os.getenv("XDG_DATA_HOME") or Path.home() / ".local" / "share")
+    return root / "polaris-core" / "docs"
 
 
 def configure_interactively(
