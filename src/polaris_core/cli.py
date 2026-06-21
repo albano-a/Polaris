@@ -2,16 +2,18 @@ from __future__ import annotations
 
 import argparse
 import json
+import shutil
 import sys
 from pathlib import Path
 
-from polaris_core.config import ConfigStore, config_summary, configure_interactively
-from polaris_core.context import StaticContextProvider, geophysics_profile
-from polaris_core.model_registry import default_model_for, fetch_live_models, list_models
+from polaris_core.chat.context import StaticContextProvider
+from polaris_core.chat.profiles import geophysics_profile
+from polaris_core.chat.service import PolarisService
+from polaris_core.config import ConfigStore, config_summary, configure_interactively, user_docs_dir
+from polaris_core.llm.providers import LiteLLMProvider, MockLLMProvider
+from polaris_core.llm.registry import default_model_for, fetch_live_models, list_models
 from polaris_core.models import AssistantRequest, ResponseFormat
-from polaris_core.providers import LiteLLMProvider, MockLLMProvider
-from polaris_core.retrieval import LocalRetriever
-from polaris_core.service import PolarisService
+from polaris_core.retrieval import DEFAULT_DOCUMENT_PATTERNS, LocalRetriever
 
 
 def build_parser() -> argparse.ArgumentParser:
@@ -41,6 +43,19 @@ def build_parser() -> argparse.ArgumentParser:
     config = subparsers.add_parser("config", help="Show current non-secret configuration.")
     config.add_argument("--json", action="store_true", help="Print machine-readable JSON.")
 
+    docs = subparsers.add_parser("docs", help="Manage the user document store for RAG.")
+    docs_sub = docs.add_subparsers(dest="docs_command")
+
+    docs_add = docs_sub.add_parser("add", help="Copy a file or directory into the user docs store.")
+    docs_add.add_argument("path", type=Path, help="File or directory to add.")
+
+    docs_sub.add_parser("list", help="List documents in the user docs store.")
+
+    docs_remove = docs_sub.add_parser("remove", help="Remove a document from the user docs store.")
+    docs_remove.add_argument("name", help="Filename to remove.")
+
+    docs_sub.add_parser("path", help="Print the user docs directory path.")
+
     return parser
 
 
@@ -52,7 +67,7 @@ def add_ask_arguments(parser: argparse.ArgumentParser) -> None:
         nargs="?",
         const=":packaged:",
         type=Path,
-        help="File or directory with .txt/.md/.rst/.pdf files. Omit the path to use packaged geophysics docs.",
+        help="File or directory with .txt/.md/.rst/.pdf files. Omit the path to use packaged geophysics docs and your user store.",
     )
     parser.add_argument("--plain", action="store_true", help="Ask for plain text instead of HTML.")
     parser.add_argument("--context-title", default=None, help="Optional title for runtime context.")
@@ -62,7 +77,7 @@ def add_ask_arguments(parser: argparse.ArgumentParser) -> None:
 
 def main(argv: list[str] | None = None) -> int:
     raw_args = list(sys.argv[1:] if argv is None else argv)
-    commands = {"ask", "configure", "models", "config"}
+    commands = {"ask", "configure", "models", "config", "docs"}
     if not raw_args:
         raw_args.append("ask")
     elif raw_args[0] not in commands:
@@ -75,6 +90,8 @@ def main(argv: list[str] | None = None) -> int:
         return models_command(args)
     if command == "config":
         return config_command(args)
+    if command == "docs":
+        return docs_command(args)
     return ask_command(args)
 
 
@@ -136,14 +153,12 @@ def ask_command(args: argparse.Namespace) -> int:
     provider = MockLLMProvider() if args.mock else LiteLLMProvider.from_config()
     retriever = None
     if args.docs:
-        retriever = (
-            LocalRetriever.from_packaged_docs()
-            if str(args.docs) == ":packaged:"
-            else LocalRetriever.from_path(args.docs)
-        )
-    if args.verbose and args.docs:
-        count = len(retriever.documents) if retriever else 0
-        print(f"Loaded {count} document(s) from {args.docs}", file=sys.stderr)
+        if str(args.docs) == ":packaged:":
+            retriever = LocalRetriever.from_packaged_and_user_docs()
+        else:
+            retriever = LocalRetriever.from_path(args.docs)
+    if args.verbose and retriever is not None:
+        print(f"Loaded {len(retriever.documents)} document(s)", file=sys.stderr)
     service = PolarisService(
         provider=provider,
         profile=geophysics_profile(),
@@ -161,6 +176,79 @@ def ask_command(args: argparse.Namespace) -> int:
     )
     print(response.content)
     return 0
+
+
+def docs_command(args: argparse.Namespace) -> int:
+    sub = getattr(args, "docs_command", None)
+    docs_dir = user_docs_dir()
+
+    if sub is None or sub == "path":
+        print(docs_dir)
+        return 0
+
+    if sub == "list":
+        if not docs_dir.exists():
+            print("User docs store is empty.")
+            return 0
+        files = [f for f in sorted(docs_dir.iterdir()) if f.is_file()]
+        if not files:
+            print("User docs store is empty.")
+            return 0
+        for f in files:
+            print(f"{f.name}  ({_human_size(f.stat().st_size)})")
+        return 0
+
+    if sub == "add":
+        src = Path(args.path)
+        docs_dir.mkdir(parents=True, exist_ok=True)
+        if src.is_file():
+            dest = docs_dir / src.name
+            if dest.exists():
+                print(f"Already in store: {src.name}  (use 'polaris docs remove {src.name}' first)")
+                return 1
+            shutil.copy2(src, dest)
+            print(f"Added: {src.name}")
+        elif src.is_dir():
+            added, skipped = 0, 0
+            for pattern in DEFAULT_DOCUMENT_PATTERNS:
+                for f in sorted(src.rglob(pattern)):
+                    if not f.is_file():
+                        continue
+                    dest = docs_dir / f.name
+                    if dest.exists():
+                        print(f"Skipped (already exists): {f.name}")
+                        skipped += 1
+                    else:
+                        shutil.copy2(f, dest)
+                        added += 1
+            summary = f"Added {added} file(s)"
+            if skipped:
+                summary += f", skipped {skipped} duplicate(s)"
+            print(summary)
+        else:
+            print(f"Path not found: {src}", file=sys.stderr)
+            return 1
+        return 0
+
+    if sub == "remove":
+        target = docs_dir / args.name
+        if not target.exists():
+            print(f"Not found: {args.name}", file=sys.stderr)
+            return 1
+        target.unlink()
+        print(f"Removed: {args.name}")
+        return 0
+
+    print("Unknown docs subcommand. Use: add, list, remove, path", file=sys.stderr)
+    return 1
+
+
+def _human_size(size: int) -> str:
+    for unit in ("B", "KB", "MB", "GB"):
+        if size < 1024:
+            return f"{size:.0f} {unit}"
+        size /= 1024  # type: ignore[assignment]
+    return f"{size:.1f} TB"
 
 
 if __name__ == "__main__":

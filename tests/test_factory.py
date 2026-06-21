@@ -9,7 +9,7 @@ from polaris_core import (
     list_available_models,
     save_model_config,
 )
-from polaris_core.providers import MockLLMProvider
+from polaris_core.llm.providers import MockLLMProvider
 
 
 def test_create_model_returns_litellm_provider():

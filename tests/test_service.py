@@ -1,9 +1,9 @@
 from dataclasses import dataclass, field
 
-from polaris_core.context import StaticContextProvider
+from polaris_core.chat.context import StaticContextProvider
+from polaris_core.chat.service import PolarisService
+from polaris_core.llm.providers import MockLLMProvider
 from polaris_core.models import AssistantContext, AssistantRequest, ChatMessage, MessageRole
-from polaris_core.providers import MockLLMProvider
-from polaris_core.service import PolarisService
 
 
 @dataclass

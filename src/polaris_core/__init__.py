@@ -1,5 +1,6 @@
-from polaris_core.config import ConfigStore, PolarisConfig
-from polaris_core.context import geophysics_profile
+from polaris_core.chat.profiles import geophysics_profile
+from polaris_core.chat.service import PolarisService
+from polaris_core.config import ConfigStore, PolarisConfig, user_docs_dir
 from polaris_core.factory import (
     create_anthropic_model,
     create_deepseek_model,
@@ -14,7 +15,7 @@ from polaris_core.factory import (
     save_model_config,
 )
 from polaris_core.models import AssistantContext, AssistantProfile, AssistantRequest, AssistantResponse
-from polaris_core.service import PolarisService
+from polaris_core.retrieval import LocalRetriever
 
 __all__ = [
     "AssistantContext",
@@ -22,6 +23,7 @@ __all__ = [
     "AssistantRequest",
     "AssistantResponse",
     "ConfigStore",
+    "LocalRetriever",
     "PolarisService",
     "PolarisConfig",
     "create_anthropic_model",
@@ -36,4 +38,5 @@ __all__ = [
     "list_available_models",
     "list_live_models",
     "save_model_config",
+    "user_docs_dir",
 ]

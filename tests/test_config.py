@@ -1,6 +1,6 @@
 from polaris_core.config import ConfigStore
-from polaris_core.model_registry import default_model_for, list_models, normalize_provider
-from polaris_core.providers import LiteLLMProvider
+from polaris_core.llm.providers import LiteLLMProvider
+from polaris_core.llm.registry import default_model_for, list_models, normalize_provider
 
 
 def test_model_registry_lists_supported_providers():

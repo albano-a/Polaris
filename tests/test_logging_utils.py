@@ -1,6 +1,6 @@
 import logging
 
-from polaris_core.logging_utils import LiteLLMOptionalAwsWarningFilter
+from polaris_core.llm.logging import LiteLLMOptionalAwsWarningFilter
 
 
 def test_litellm_optional_aws_warning_filter_suppresses_bedrock_warning():

@@ -2,13 +2,14 @@ from __future__ import annotations
 
 from pathlib import Path
 
+from polaris_core.chat.context import ContextProvider, StaticContextProvider
+from polaris_core.chat.profiles import geophysics_profile
+from polaris_core.chat.service import PolarisService
 from polaris_core.config import ConfigStore, PolarisConfig
-from polaris_core.context import ContextProvider, StaticContextProvider, geophysics_profile
-from polaris_core.model_registry import ModelInfo, default_model_for, fetch_live_models, list_models
+from polaris_core.llm.providers import LLMProvider, LiteLLMProvider
+from polaris_core.llm.registry import ModelInfo, default_model_for, fetch_live_models, list_models
 from polaris_core.models import AssistantProfile
-from polaris_core.providers import LLMProvider, LiteLLMProvider
 from polaris_core.retrieval import LocalRetriever
-from polaris_core.service import PolarisService
 
 
 def create_model(
