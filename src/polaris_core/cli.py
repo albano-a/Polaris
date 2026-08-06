@@ -14,6 +14,7 @@ from polaris_core.llm.providers import LiteLLMProvider, MockLLMProvider
 from polaris_core.llm.registry import default_model_for, fetch_live_models, list_models
 from polaris_core.models import AssistantRequest, ResponseFormat
 from polaris_core.retrieval import DEFAULT_DOCUMENT_PATTERNS, LocalRetriever
+from polaris_core.terminal import html_to_terminal
 
 
 def build_parser() -> argparse.ArgumentParser:
@@ -168,13 +169,17 @@ def ask_command(args: argparse.Namespace) -> int:
         ),
         retriever=retriever,
     )
+    response_format = ResponseFormat.PLAIN_TEXT if args.plain else ResponseFormat.HTML
     response = service.ask(
         AssistantRequest(
             message=message,
-            response_format=ResponseFormat.PLAIN_TEXT if args.plain else ResponseFormat.HTML,
+            response_format=response_format,
         )
     )
-    print(response.content)
+    content = response.content
+    if response_format == ResponseFormat.HTML and sys.stdout.isatty():
+        content = html_to_terminal(content)
+    print(content)
     return 0
 
 
